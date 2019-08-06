@@ -93,16 +93,13 @@ class Collector:
                     url, parent, duration, response_code, links, response_reason = future.result(
                         timeout=1
                     )
+
+                    prefix_text = f"{response_code}, {round(duration, 2)}s, {len(links)}, {len(self.requests)}:"
                     if response_code != 200:
-                        print(
-                            f"{response_code}, {round(duration, 2)}s:"
-                            f" {done_url} <- ERROR: {response_reason}, parent: {parent}"
-                        )
+                        message = prefix_text + f" {done_url} <- ERROR: {response_reason}, parent: {parent}"
                     else:
-                        print(
-                            f"{response_code}, {round(duration, 2)}s,"
-                            f" {len(links)}: {done_url}"
-                        )
+                        message = prefix_text + f" {done_url}"
+                    print(message)
 
                     for link in links:
                         if (
