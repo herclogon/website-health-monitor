@@ -24,20 +24,26 @@ log = logging.getLogger(__name__)
 
 
 class Collector:
-    requests = {}
+    # Keep Future(s) of active requests.
+    requests = set()
+
+    # Keep history of all visited URLs.
     history = set()
+    concurrency = 1
+    max_duration = 2
+    useragent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_0) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/21.0.1180.79 Safari/537.1"
 
     def __init__(self, url):
         self.start_url = url
         self.history = set()
 
-    def get_links(self, url, parent):
+    def _get_links_by_soap(self, url, parent):
         """Get all 'href' links from the resource (web-page) located by URL.
-        
+
         Arguments:
             url {str} -- Page download URL.
             parent {str} -- Parent page URL.
-        
+
         Returns:
             [type] -- url, parent, duration, response_code, links
         """
@@ -46,6 +52,7 @@ class Collector:
         page = requests.get(url, verify=False, timeout=10, headers=headers)
         response_code = page.status_code
         response_reason = page.reason
+        response_size = len(page.content)
         duration = time.time() - start
         links = []
 
@@ -63,9 +70,17 @@ class Collector:
                 links.append(self.start_url + href)
             if href.startswith(self.start_url):
                 links.append(href)
-        return url, parent, duration, response_code, links, response_reason
+        return (
+            url,
+            parent,
+            duration,
+            response_code,
+            response_reason,
+            response_size,
+            links,
+        )
 
-    def get_links_by_lynx(self, url, parent):
+    def _get_links_by_lynx(self, url, parent):
         start = time.time()
         cmd = [
             "bash",
@@ -80,42 +95,51 @@ class Collector:
 
     def collect(self):
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-            future = executor.submit(self.get_links, self.start_url, "")
-            self.requests[future] = self.start_url
+            self.executor = executor
+            future = executor.submit(self._get_links_by_soap, self.start_url, "")
+            self.requests.add(future)
+            future.add_done_callback(self._furute_done_callback)
 
             while len(self.requests):
-                for future in list(self.requests):
-                    if not future.done():
-                        continue
-
-                    del self.requests[future]
-                    url, parent, duration, response_code, links, response_reason = future.result(
-                        timeout=1
-                    )
-
-                    prefix_text = f"{response_code}, {round(duration, 2)}s, {len(links)}, {len(self.requests)}:"
-                    if response_code != 200:
-                        message = (
-                            prefix_text
-                            + f" {url} <- ERROR: {response_reason}, parent: {parent}"
-                        )
-                    else:
-                        message = prefix_text + f" {url}"
-                    print(message)
-
-                    for link in links:
-                        if (
-                            # Prevent searching inside another domain and already
-                            # visited links.
-                            link.startswith(self.start_url)
-                            and link not in self.history
-                        ):
-                            self.history.add(link)
-                            future = executor.submit(self.get_links, link, url)
-                            self.requests[future] = link
-                time.sleep(0.1)
+                time.sleep(1)
 
         print(f"Well done, {len(self.history)} URLs processed.")
+
+    def _furute_done_callback(self, future):
+        # Remove already done request from the list.
+        self.requests.remove(future)
+
+        url, parent, duration, response_code, response_reason, response_size, links, = future.result(
+            timeout=1
+        )
+
+        prefix_text = (
+            f"{response_code}, {round(response_size/1024/1024, 2)}M,"
+            f" {round(duration, 2)}s, {len(links)}, {len(self.requests)}:"
+        )
+
+        if response_code != 200:
+            message = (
+                f"{prefix_text} {url} <- ERROR: {response_reason}, parent: {parent}"
+            )
+        else:
+            message = prefix_text + f" {url}"
+
+        print(message)
+
+        for link in links:
+            # Do not process foreign domains.
+            if not link.startswith(self.start_url):
+                continue
+
+            # Skip processing already queued link.
+            if link in self.history:
+                continue
+
+            self.history.add(link)
+            future = self.executor.submit(self._get_links_by_soap, link, url)
+            self.requests.add(future)
+            future.add_done_callback(self._furute_done_callback)
 
 
 if __name__ == "__main__":
@@ -149,7 +173,3 @@ if __name__ == "__main__":
     collector.concurrency = args.concurrency
     collector.max_duration = args.max_duration
     collector.collect()
-
-    # args1 = parser.parse_args(args)
-
-    # print(args)
