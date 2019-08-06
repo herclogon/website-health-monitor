@@ -38,25 +38,24 @@ class Collector:
         
         Arguments:
             url {str} -- Page download URL.
-            parent {str} -- Pagent page URL.
+            parent {str} -- Parent page URL.
         
         Returns:
             [type] -- url, parent, duration, response_code, links
         """
         start = time.time()
-        page = requests.get(url, verify=False, timeout=10)
+        headers = {"User-Agent": self.useragent}
+        page = requests.get(url, verify=False, timeout=10, headers=headers)
         response_code = page.status_code
         response_reason = page.reason
         duration = time.time() - start
         links = []
-        
-        try:
+
+        if "text/html" in page.headers["content-type"]:
             soup = BeautifulSoup(page.text, "html.parser")
-        except TypeError:
-            # Work-around to prevent fail.
-            log.error(f"HTML parser can't data from '{url}'")
+        else:
             soup = BeautifulSoup("", "html.parser")
-        
+
         for link in soup.findAll("a"):
             href = str(link.get("href"))
             if href.startswith("/"):
@@ -88,7 +87,6 @@ class Collector:
                     if not future.done():
                         continue
 
-                    done_url = self.requests[future]
                     del self.requests[future]
                     url, parent, duration, response_code, links, response_reason = future.result(
                         timeout=1
@@ -96,9 +94,12 @@ class Collector:
 
                     prefix_text = f"{response_code}, {round(duration, 2)}s, {len(links)}, {len(self.requests)}:"
                     if response_code != 200:
-                        message = prefix_text + f" {done_url} <- ERROR: {response_reason}, parent: {parent}"
+                        message = (
+                            prefix_text
+                            + f" {url} <- ERROR: {response_reason}, parent: {parent}"
+                        )
                     else:
-                        message = prefix_text + f" {done_url}"
+                        message = prefix_text + f" {url}"
                     print(message)
 
                     for link in links:
@@ -113,6 +114,8 @@ class Collector:
                             self.requests[future] = link
                 time.sleep(0.1)
 
+        print(f"Well done, {len(self.history)} URLs processed.")
+
 
 if __name__ == "__main__":
     """
@@ -123,7 +126,7 @@ if __name__ == "__main__":
     parser.add_argument("--version", "-v", action="version", version=version)
     parser.add_argument("--url", "-u", type=str, help="URL to the target web-site")
     parser.add_argument(
-        "--concurrency", "-c", type=int, help="Number of cuncurrent requests", default=1
+        "--concurrency", "-c", type=int, help="Number of concurrent requests", default=1
     )
     parser.add_argument(
         "--useragent",
