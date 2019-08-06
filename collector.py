@@ -49,7 +49,7 @@ class Collector:
         """
         start = time.time()
         headers = {"User-Agent": self.useragent}
-        page = requests.get(url, verify=False, timeout=10, headers=headers)
+        page = requests.get(url, verify=False, timeout=60, headers=headers)
         response_code = page.status_code
         response_reason = page.reason
         response_size = len(page.content)
@@ -110,7 +110,7 @@ class Collector:
         self.requests.remove(future)
 
         url, parent, duration, response_code, response_reason, response_size, links, = future.result(
-            timeout=1
+            timeout=60
         )
 
         prefix_text = (
