@@ -27,11 +27,9 @@ class Collector:
     requests = {}
     history = set()
 
-    def __init__(self, url, useragent=None, concurrency=1):
+    def __init__(self, url):
         self.start_url = url
         self.history = set()
-        self.useragent = useragent
-        self.concurrency = concurrency
 
     def get_links(self, url, parent):
         """Get all 'href' links from the resource (web-page) located by URL.
@@ -53,6 +51,9 @@ class Collector:
 
         if "text/html" in page.headers["content-type"]:
             soup = BeautifulSoup(page.text, "html.parser")
+            if duration > self.max_duration:
+                response_code = 900
+                response_reason = f"Too slow response"
         else:
             soup = BeautifulSoup("", "html.parser")
 
@@ -129,6 +130,9 @@ if __name__ == "__main__":
         "--concurrency", "-c", type=int, help="Number of concurrent requests", default=1
     )
     parser.add_argument(
+        "--max_duration", "-d", type=int, help="Max response duration", default=2
+    )
+    parser.add_argument(
         "--useragent",
         type=str,
         help="user custom user agent",
@@ -140,9 +144,10 @@ if __name__ == "__main__":
         parser.print_help()
         exit(1)
 
-    collector = Collector(
-        args.url, useragent=args.useragent, concurrency=args.concurrency
-    )
+    collector = Collector(args.url)
+    collector.useragent = args.useragent
+    collector.concurrency = args.concurrency
+    collector.max_duration = args.max_duration
     collector.collect()
 
     # args1 = parser.parse_args(args)
