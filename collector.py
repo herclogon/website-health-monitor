@@ -1,67 +1,112 @@
-import subprocess
-import queue
-import time
-
-import logging
 import argparse
+import concurrent
+import logging
+import queue
+import re
+import subprocess
+import time
+from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import Queue
+from pathlib import Path
 
-logging.basicConfig(level=logging.DEBUG)
+import requests
+
+# Preventing 'Unverified HTTPS request is being made' warning.
+import urllib3
+from bs4 import BeautifulSoup
+
+urllib3.disable_warnings()
+
+
+logging.basicConfig(level=logging.INFO)
 
 log = logging.getLogger(__name__)
 
 
 class Collector:
-    class SetQueue(queue.Queue):
-        # A collection of all items ever added to the queue.
-        history = set()
+    requests = {}
+    history = set()
 
-        def _init(self, maxsize):
-            self.queue = set()
-
-        def _put(self, item):
-            # Add only new items.
-            if item not in self.history:
-                self.history.add(item)
-                self.queue.add(item)
-
-        def _get(self):
-            return self.queue.pop()
-
-        def has_in_history(self, item):
-            return item in self.history
-
-    def __init__(self, url, useragent=None):
+    def __init__(self, url, useragent=None, concurrency=1):
         self.start_url = url
+        self.history = set()
         self.useragent = useragent
-        self.links_queue = self.SetQueue()
-        self.links_queue.put(self.start_url)
+        self.concurrency = concurrency
 
-    def get_links(self, url):
-        proc = subprocess.Popen(
-            [
-                "bash",
-                "-c",
-                f'lynx -useragent="{self.useragent}" -dump -listonly {url} | grep "{self.start_url}" | sed "s/^.*http/http/"',
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        )
+    def get_links(self, url, parent):
+        """Get all 'href' links from the resource (web-page) located by URL.
+        
+        Arguments:
+            url {str} -- Page download URL.
+            parent {str} -- Pagent page URL.
+        
+        Returns:
+            [type] -- url, parent, duration, response_code, links
+        """
+        start = time.time()
+        page = requests.get(url, verify=False, timeout=10)
+        response_code = page.status_code
+        duration = time.time() - start
+        links = []
+        soup = BeautifulSoup(page.text, "html.parser")
+        for link in soup.findAll("a"):
+            href = str(link.get("href"))
+            if href.startswith("/"):
+                links.append(self.start_url + href)
+            if href.startswith(self.start_url):
+                links.append(href)
+        return url, parent, duration, response_code, links
+
+    def get_links_by_lynx(self, url, parent):
+        start = time.time()
+        cmd = [
+            "bash",
+            "-c",
+            f'lynx -useragent="{self.useragent}" -dump -listonly {url} | grep "{self.start_url}" | sed "s/^.*http/http/"',
+        ]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = proc.communicate()
+        duration = time.time() - start
         links = list(filter(None, stdout.decode("utf-8").split("\n")))
-        return links
+        return url, parent, duration, 0, links
 
     def collect(self):
-        while not self.links_queue.empty():
-            url = self.links_queue.get()
-            start = time.time()
-            links = self.get_links(url)
-            duration = time.time() - start
-            for link in links:
-                # Prevent searching inside another domain.
-                if link.startswith(self.start_url):
-                    if not self.links_queue.has_in_history(link):
-                        print(f"{url} ({round(duration, 2)}s) -> {link} ")
-                        self.links_queue.put(link)
+        with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
+            future = executor.submit(self.get_links, self.start_url, "ROOT")
+            self.requests[future] = self.start_url
+
+            while len(self.requests):
+                for future in list(self.requests):
+                    if not future.done():
+                        continue
+
+                    done_url = self.requests[future]
+                    del self.requests[future]
+                    url, parent, duration, response_code, links = future.result(
+                        timeout=1
+                    )
+                    if response_code != 200:
+                        print(
+                            f"{response_code}, {round(duration, 2)}s:"
+                            f" {done_url} <- ERROR (parent: {parent})"
+                        )
+                    else:
+                        print(
+                            f"{response_code}, {round(duration, 2)}s,"
+                            f" {len(links)}: {done_url}"
+                        )
+
+                    for link in links:
+                        if (
+                            # Prevent searching inside another domain and already
+                            # visited links.
+                            link.startswith(self.start_url)
+                            and link not in self.history
+                        ):
+                            self.history.add(link)
+                            future = executor.submit(self.get_links, link, url)
+                            self.requests[future] = link
+                time.sleep(0.1)
 
 
 if __name__ == "__main__":
@@ -71,8 +116,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     version = "0.0.1"
     parser.add_argument("--version", "-v", action="version", version=version)
+    parser.add_argument("--url", "-u", type=str, help="URL to the target web-site")
     parser.add_argument(
-        "--url", "-u", type=str, help="URL to the target web-site"
+        "--concurrency", "-c", type=int, help="Number of cuncurrent requests", default=1
     )
     parser.add_argument(
         "--useragent",
@@ -86,6 +132,11 @@ if __name__ == "__main__":
         parser.print_help()
         exit(1)
 
-    collector = Collector(args.url, useragent=args.useragent)
+    collector = Collector(
+        args.url, useragent=args.useragent, concurrency=args.concurrency
+    )
     collector.collect()
 
+    # args1 = parser.parse_args(args)
+
+    # print(args)
