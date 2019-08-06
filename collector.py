@@ -46,6 +46,7 @@ class Collector:
         start = time.time()
         page = requests.get(url, verify=False, timeout=10)
         response_code = page.status_code
+        response_reason = page.reason
         duration = time.time() - start
         links = []
         soup = BeautifulSoup(page.text, "html.parser")
@@ -55,7 +56,7 @@ class Collector:
                 links.append(self.start_url + href)
             if href.startswith(self.start_url):
                 links.append(href)
-        return url, parent, duration, response_code, links
+        return url, parent, duration, response_code, links, response_reason
 
     def get_links_by_lynx(self, url, parent):
         start = time.time()
@@ -82,13 +83,13 @@ class Collector:
 
                     done_url = self.requests[future]
                     del self.requests[future]
-                    url, parent, duration, response_code, links = future.result(
+                    url, parent, duration, response_code, links, response_reason = future.result(
                         timeout=1
                     )
                     if response_code != 200:
                         print(
                             f"{response_code}, {round(duration, 2)}s:"
-                            f" {done_url} <- ERROR (parent: {parent})"
+                            f" {done_url} <- ERROR: {response_reason}, parent: {parent}"
                         )
                     else:
                         print(
