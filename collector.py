@@ -49,7 +49,14 @@ class Collector:
         response_reason = page.reason
         duration = time.time() - start
         links = []
-        soup = BeautifulSoup(page.text, "html.parser")
+        
+        try:
+            soup = BeautifulSoup(page.text, "html.parser")
+        except TypeError:
+            # Work-around to prevent fail.
+            log.error(f"HTML parser can't data from '{url}'")
+            soup = BeautifulSoup("", "html.parser")
+        
         for link in soup.findAll("a"):
             href = str(link.get("href"))
             if href.startswith("/"):
@@ -73,7 +80,7 @@ class Collector:
 
     def collect(self):
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-            future = executor.submit(self.get_links, self.start_url, "ROOT")
+            future = executor.submit(self.get_links, self.start_url, "")
             self.requests[future] = self.start_url
 
             while len(self.requests):
