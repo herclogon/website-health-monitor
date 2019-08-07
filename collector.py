@@ -106,9 +106,6 @@ class Collector:
         print(f"Well done, {len(self.history)} URLs processed.")
 
     def _furute_done_callback(self, future):
-        # Remove already done request from the list.
-        self.requests.remove(future)
-
         url, parent, duration, response_code, response_reason, response_size, links, = future.result(
             timeout=60
         )
@@ -141,6 +138,8 @@ class Collector:
             self.requests.add(future)
             future.add_done_callback(self._furute_done_callback)
 
+        # Remove already done request from the list.
+        self.requests.remove(future)
 
 if __name__ == "__main__":
     """
