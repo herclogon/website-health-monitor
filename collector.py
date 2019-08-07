@@ -88,7 +88,7 @@ class Collector:
             f'lynx -useragent="{self.useragent}" -dump -listonly {url} | grep "{self.start_url}" | sed "s/^.*http/http/"',
         ]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout, stderr = proc.communicate()
+        stdout, _ = proc.communicate()
         duration = time.time() - start
         links = list(filter(None, stdout.decode("utf-8").split("\n")))
         return url, parent, duration, 0, links
@@ -134,9 +134,9 @@ class Collector:
                 continue
 
             self.history.add(link)
-            future = self.executor.submit(self._get_links_by_soap, link, url)
-            self.requests.add(future)
-            future.add_done_callback(self._furute_done_callback)
+            ex_future = self.executor.submit(self._get_links_by_soap, link, url)
+            self.requests.add(ex_future)
+            ex_future.add_done_callback(self._furute_done_callback)
 
         # Remove already done request from the list.
         self.requests.remove(future)
