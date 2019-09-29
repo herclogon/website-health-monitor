@@ -199,7 +199,7 @@ class Collector:
             while len(self.requests):
                 time.sleep(1)
 
-        with open(self.sitemapFile) as f:
+        with open(self.sitemapFile, "a") as f:
             f.writelines(["</urlset>"])
 
         print(f"Well done, {len(self.history)} URLs processed.")
@@ -273,13 +273,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--useragent",
         type=str,
-        help="user custom user agent",
+        help="User custom user agent",
         default="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_0) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/21.0.1180.79 Safari/537.1",
     )
     parser.add_argument(
         "--sitemap",
         type=str,
-        help="renerate sitemap xml file during scan",
+        help="Generate sitemap xml-file during scan",
         default="sitemap.xml",
     )
 
