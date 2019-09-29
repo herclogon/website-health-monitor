@@ -5,11 +5,19 @@ import queue
 import re
 import subprocess
 import time
-from concurrent.futures import ThreadPoolExecutor
+import hashlib
+
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from multiprocessing import Queue
 from pathlib import Path
+from syncer import sync
 
 import requests
+
+import asyncio
+import pyppeteer
+from pyppeteer import launch
+
 
 # Preventing 'Unverified HTTPS request is being made' warning.
 import urllib3
@@ -19,8 +27,72 @@ urllib3.disable_warnings()
 
 
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("pyppeteer").setLevel(logging.CRITICAL)
 
 log = logging.getLogger(__name__)
+
+start_url = ""
+
+
+async def _get_links_by_pyppeteer_async(url, parent):
+    links = set()
+
+    start = time.time()
+    page = requests.get(url, verify=False, timeout=60)
+    response_code = page.status_code
+    response_reason = page.reason
+    response_size = len(page.content)
+    duration = time.time() - start
+
+    async def request_callback(request):
+        links.add(request.url)
+        await request.continue_()
+
+    if "content-type" in page.headers and "text/html" in page.headers["content-type"]:
+        # Collect all links from the page.
+        soup = BeautifulSoup(page.text, "html.parser")
+        for link in soup.findAll("a"):
+            href = str(link.get("href"))
+            if href.startswith("/"):
+                links.add(start_url + href)
+            if href.startswith(start_url):
+                links.add(href)
+
+        # # Collect all resources.
+        # try:
+        #     browser = await launch({"headless": False})
+        #     page = await browser.newPage()
+        #     await page.setRequestInterception(True)
+        #     page.on("request", request_callback)
+        #     await page.goto(url)
+        #     await page.screenshot({"path": f"pic.jpg"})
+        #     await browser.close()
+        # except pyppeteer.errors.NetworkError as err:
+        #     response_code = 902
+        #     response_reason = f"Browser network exception"
+
+        if duration > 2:
+            response_code = 900
+            response_reason = f"Too slow response"
+
+    result = (
+        url,
+        parent,
+        duration,
+        response_code,
+        response_reason,
+        response_size,
+        list(links),
+    )
+    return result
+
+
+def _get_links_by_pyppeteer_io(*args, **kwargs):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return asyncio.get_event_loop().run_until_complete(
+        _get_links_by_pyppeteer_async(*args, **kwargs)
+    )
 
 
 class Collector:
@@ -79,6 +151,14 @@ class Collector:
             response_size,
             links,
         )
+
+    def _get_links_by_pyppeteer(self, url, parent):
+        with ProcessPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_get_links_by_pyppeteer_io, url, parent)
+            while not future.done():
+                time.sleep(0.1)
+
+            return future.result()
 
     def _get_links_by_lynx(self, url, parent):
         start = time.time()
