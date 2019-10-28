@@ -1,130 +1,48 @@
 # TODO(dmitry.golubkov): Write to sitemap file thread-safe.
 
 import argparse
+import asyncio
 import concurrent
+import datetime
+import hashlib
+import html
 import logging
+import os
 import queue
 import re
 import subprocess
 import time
-import hashlib
-
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+import urllib
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from multiprocessing import Queue
 from pathlib import Path
-import datetime
-import os
-import urllib
-import requests
-
+import urllib.request
 import urllib.robotparser
 
-import asyncio
 import pyppeteer
-
-is_url_regex = re.compile(
-    r"^(?:http|ftp)s?://"  # http:// or https://
-    r"(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|"  # domain...
-    r"localhost|"  # localhost...
-    r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})"  # ...or ip
-    r"(?::\d+)?"  # optional port
-    r"(?:/?|[/?]\S+)$",
-    re.IGNORECASE,
-)
+import requests
 
 # Preventing 'Unverified HTTPS request is being made' warning.
 import urllib3
 from bs4 import BeautifulSoup
+from pyppeteer import launch
+from syncer import sync
+
+import obtainers.pyppeteer
 
 urllib3.disable_warnings()
 
-logging.basicConfig(level=logging.DEBUG)
-logging.getLogger("pyppeteer").setLevel(logging.ERROR)
-logging.getLogger("websockets").setLevel(logging.ERROR)
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("pyppeteer").setLevel(logging.CRITICAL)
+logging.getLogger("urllib3").setLevel(logging.CRITICAL)
+logging.getLogger("asyncio").setLevel(logging.CRITICAL)
+
 
 log = logging.getLogger(__name__)
 
 start_url = ""
 
 now = datetime.datetime.now()
-
-
-async def _get_links_by_pyppeteer_async(url, parent_url):
-    links = set()
-
-    start = time.time()
-    page = requests.get(url, verify=False, timeout=600)
-    response_code = page.status_code
-    response_reason = page.reason
-    response_size = len(page.content)
-    duration = time.time() - start
-
-    response_content_type = ""
-    if "content-type" in page.headers:
-        response_content_type = page.headers["content-type"]
-
-    if "content-type" in page.headers and "text/html" in page.headers["content-type"]:
-        # # Collect all links from the page.
-        # soup = BeautifulSoup(page.text, "html.parser")
-        # for link in soup.findAll("a"):
-        #     href = str(link.get("href"))
-        #     absolute_url = urllib.parse.urljoin(start_url, href)
-        #     links.add(absolute_url)
-
-        # Collect all resources.
-        try:
-            browser = await pyppeteer.launch({"headless": True})
-            context = await browser.createIncognitoBrowserContext()
-            py_page = await context.newPage()
-            await py_page.setRequestInterception(True)
-
-            async def request_callback(request):
-                links.add(request.url)
-                await request.continue_()
-
-            py_page.on("request", request_callback)
-            # Select all non-empty links.
-            a_href_elems = await py_page.querySelectorAllEval(
-                "a", "(nodes => nodes.map(n => n.href))"
-            )
-
-            for href in a_href_elems:
-                if re.match(is_url_regex, href) is not None:
-                    links.add(href)
-
-            await browser.close()
-        except pyppeteer.errors.NetworkError as error:
-            response_code = 902
-            response_reason = f"Browser network exception."
-            log.error(error)
-        except Exception as error:
-            response_code = 903
-            response_reason = f"Unknown exception {error}"
-            log.error(error)
-
-        if duration > 10:
-            response_code = 900
-            response_reason = f"Too slow response"
-
-    result = {
-        "url": url,
-        "parent_url": parent_url,
-        "duration": duration,
-        "response_code": response_code,
-        "response_reason": response_reason,
-        "response_size": response_size,
-        "response_content_type": response_content_type,
-        "links": links,
-    }
-    return result
-
-
-def _get_links_by_pyppeteer_io(*args, **kwargs):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    return asyncio.get_event_loop().run_until_complete(
-        _get_links_by_pyppeteer_async(*args, **kwargs)
-    )
 
 
 class Collector:
@@ -138,107 +56,27 @@ class Collector:
     history = set()
     concurrency = 1
     max_duration = 6
-    useragent = "User-Agent: LinkCheckerBot / 0.0.1 Check links on your website"
+    useragent = ""
 
     def __init__(self, url):
         self.start_url = url
         self.history = set()
 
-        robot_txt_url = f"{self.start_url}/robots.txt"
-        log.debug("robots.txt: url = %s", robot_txt_url)
-        self.robot_txt = urllib.robotparser.RobotFileParser()
-        self.robot_txt.set_url(robot_txt_url)
-        self.robot_txt.read()
+        # robot_txt_url = f"{self.start_url}/robots.txt"
+        # log.debug("robots.txt: url = %s", robot_txt_url)
+        # self.robot_txt = urllib.robotparser.RobotFileParser()
+        # self.robot_txt.set_url(robot_txt_url)
+        # self.robot_txt.read()
 
-        rrate = self.robot_txt.request_rate("*")
-        log.debug("robots.txt: requests = %s", rrate.requests)
-        log.debug("robots.txt: seconds = %s", rrate.seconds)
-        log.debug("robots.txt: crawl_delay = %s", self.robot_txt.crawl_delay("*"))
+        # rrate = self.robot_txt.request_rate("*")
+        # log.debug("robots.txt: requests = %s", rrate.requests)
+        # log.debug("robots.txt: seconds = %s", rrate.seconds)
+        # log.debug("robots.txt: crawl_delay = %s", self.robot_txt.crawl_delay("*"))
 
     # >>> rp.can_fetch("*", "http://www.musi-cal.com/cgi-bin/search?city=San+Francisco")
     # False
     # >>> rp.can_fetch("*", "http://www.musi-cal.com/")
     # True
-
-    def _get_links_by_soap(self, url, parent):
-        """Get all 'href' links from the resource (web-page) located by URL.
-
-        Arguments:
-            url {str} -- Page download URL.
-            parent {str} -- Parent page URL.
-
-        Returns:
-            [type] -- url, parent, duration, response_code, links
-        """
-        start = time.time()
-        headers = {"User-Agent": self.useragent}
-        page = requests.get(url, verify=False, timeout=60, headers=headers)
-        response_code = page.status_code
-        response_reason = page.reason
-        response_size = len(page.content)
-        response_content_type = page.headers["content-type"]
-        duration = time.time() - start
-        links = []
-
-        if "text/html" in response_content_type:
-            soup = BeautifulSoup(page.text, "html.parser")
-            if duration > self.max_duration:
-                response_code = 900
-                response_reason = f"Too slow response"
-        else:
-            soup = BeautifulSoup("", "html.parser")
-
-        for link in soup.findAll("a"):
-            href = str(link.get("href"))
-            absolute_url = urllib.parse.urljoin(self.start_url, href)
-            links.append(absolute_url)
-
-        for link in soup.findAll("img"):
-            href = str(link.get("src"))
-            absolute_url = urllib.parse.urljoin(self.start_url, href)
-            links.append(absolute_url)
-
-        # for link in soup.findAll("script"):
-        #     href = str(link.get("src"))
-        #     absolute_url = urllib.parse.urljoin(self.start_url, href)
-        #     links.append(absolute_url)
-
-        # for link in soup.findAll("link"):
-        #     href = str(link.get("href"))
-        #     absolute_url = urllib.parse.urljoin(self.start_url, href)
-        #     links.append(absolute_url)
-
-        return (
-            url,
-            parent,
-            duration,
-            response_code,
-            response_reason,
-            response_size,
-            response_content_type,
-            links,
-        )
-
-    def _get_links_by_pyppeteer(self, url, parent):
-        with ProcessPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(_get_links_by_pyppeteer_io, url, parent)
-            while not future.done():
-                time.sleep(0.1)
-
-            return future.result()
-
-    def _get_links_by_lynx(self, url, parent):
-        start = time.time()
-        cmd = [
-            "bash",
-            "-c",
-            f'lynx -useragent="{self.useragent}" -dump -listonly {url} | grep "{self.start_url}" | sed "s/^.*http/http/"',
-        ]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout, _ = proc.communicate()
-        duration = time.time() - start
-        links = list(filter(None, stdout.decode("utf-8").split("\n")))
-        return url, parent, duration, 0, links
 
     def collect(self):
         if os.path.exists(self.sitemapFile):
@@ -250,8 +88,7 @@ class Collector:
 
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
             self.executor = executor
-            future = executor.submit(self._get_links_by_pyppeteer, self.start_url, "")
-            # future = executor.submit(self._get_links_by_soap, self.start_url, "")
+            future = executor.submit(obtainers.pyppeteer.get_links, self.start_url, "")
             self.requests.add(future)
             future.add_done_callback(self._furute_done_callback)
 
@@ -264,37 +101,40 @@ class Collector:
         print(f"Well done, {len(self.history)} URLs processed.")
 
     def _furute_done_callback(self, future):
-        class AttributeDict(dict):
-            def __getattr__(self, attr):
-                return self[attr]
+        result = future.result(timeout=60)
+        # print(f"result: {result}")
 
-            def __setattr__(self, attr, value):
-                self[attr] = value
-
-        page = AttributeDict(future.result(timeout=60))
+        url = result["url"]
+        parent_url = result["parent_url"]
+        duration = result["duration"]
+        response_code = result["response_code"]
+        response_reason = result["response_reason"]
+        response_size = result["response_size"]
+        response_content_type = result["response_content_type"]
+        links = result["links"]
 
         prefix_text = (
-            f"{page.response_code}, {round(page.response_size/1024/1024, 2)}M,"
-            f" {round(page.duration, 2)}s, {len(page.links)}, {len(self.requests)}:"
+            f"{response_code}, {round(response_size/1024/1024, 2)}M,"
+            f" {round(duration, 2)}s, {len(links)}, {len(self.requests)}:"
         )
 
-        message = ""
-        if page.response_code != 200:
-            message = f"{prefix_text} {page.url} <- ERROR: {page.response_reason}, parent: {page.parent_url}"
+        if response_code != 200:
+            message = (
+                f"{prefix_text} {url} <- ERROR: {response_reason}, parent: {parent_url}"
+            )
         else:
-            # if "text/html" in response_content_type:
-            #     with open(self.sitemapFile, "a") as f:
-            #         f.write(f"<url>\n")
-            #         f.write(f"  <loc>{url}</loc>\n")
-            #         # f.write(f"  <lastmod>{now.strftime('%Y-%m-%d')}</lastmod>\n")
-            #         f.write(f"  <changefreq>weekly</changefreq>\n")
-            #         f.write(f"  <priority>1</priority>\n")
-            #         f.write(f"</url>\n")
-            message = prefix_text + f" {page.url}"
+            if "text/html" in response_content_type:
+                with open(self.sitemapFile, "a") as f:
+                    f.write(f"<url>\n")
+                    f.write(f"  <loc>{html.escape(url)}</loc>\n")
+                    f.write(f"  <changefreq>weekly</changefreq>\n")
+                    f.write(f"  <priority>1</priority>\n")
+                    f.write(f"</url>\n")
+            message = prefix_text + f" {url}"
 
         print(message)
 
-        for link in page.links:
+        for link in links:
             # Do not process foreign domains.
             if not link.startswith(self.start_url):
                 continue
@@ -304,9 +144,7 @@ class Collector:
                 continue
 
             self.history.add(link)
-            ex_future = self.executor.submit(
-                self._get_links_by_pyppeteer, link, page.url
-            )
+            ex_future = self.executor.submit(obtainers.pyppeteer.get_links, link, url)
             self.requests.add(ex_future)
             ex_future.add_done_callback(self._furute_done_callback)
 
@@ -321,7 +159,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     version = "0.0.1"
     parser.add_argument("--version", "-v", action="version", version=version)
-    parser.add_argument("--url", "-u", type=str, help="URL to the target web-site")
+    parser.add_argument(
+        "url",
+        nargs=1,
+        type=str,
+        help="URL to the target web-site (http://example.com')",
+    )
     parser.add_argument(
         "--concurrency", "-c", type=int, help="Number of concurrent requests", default=1
     )
@@ -331,8 +174,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--useragent",
         type=str,
-        help="User custom user agent",
-        default="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_0) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/21.0.1180.79 Safari/537.1",
+        help="User agent uses for requests.",
+        default="User-Agent: LinkCheckerBot / 0.0.1",
     )
     parser.add_argument(
         "--sitemap",
@@ -346,7 +189,7 @@ if __name__ == "__main__":
         parser.print_help()
         exit(1)
 
-    collector = Collector(args.url)
+    collector = Collector(args.url[0])
     collector.useragent = args.useragent
     collector.concurrency = args.concurrency
     collector.max_duration = args.max_duration
