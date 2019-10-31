@@ -37,11 +37,12 @@ class RequestResult:
     links = []
 
 
-async def _obtain_resources(url: str, parent_url: str):
+async def _obtain_resources(url: str, parent_url: str, user_agent: str):
     links = set()
 
     start = time.time()
-    page = requests.get(url, verify=False, timeout=60)
+    headers = {"User-Agent": user_agent}
+    page = requests.get(url, verify=False, timeout=60, headers=headers)
 
     response_code = page.status_code
     response_reason = page.reason
@@ -60,6 +61,7 @@ async def _obtain_resources(url: str, parent_url: str):
             browser = await pyppeteer.launch({"headless": True})
             py_page = await browser.newPage()
             py_page.on("request", request_callback)
+            await py_page.setUserAgent(user_agent)
             await py_page.setRequestInterception(True)
             await py_page.goto(url)
 
@@ -115,8 +117,8 @@ def _get_links_by_pyppeteer_io(*args, **kwargs):
     )
 
 
-def _get_links_by_pyppeteer(url, parent):
-    return _get_links_by_pyppeteer_io(url, parent)
+def _get_links_by_pyppeteer(url, parent, user_agent):
+    return _get_links_by_pyppeteer_io(url, parent, user_agent)
 
 
 def get_links(*args, **kwargs) -> RequestResult:

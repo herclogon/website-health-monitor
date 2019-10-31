@@ -130,7 +130,7 @@ class Collector:
 
     def _add_url(self, url, parent):
         future = asyncio.get_event_loop().run_in_executor(
-            self.executor, obtainers.pyppeteer.get_links, url, parent
+            self.executor, obtainers.pyppeteer.get_links, url, parent, self.useragent
         )
 
         future.add_done_callback(self._furute_done_callback)
