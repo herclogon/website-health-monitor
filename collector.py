@@ -47,6 +47,24 @@ start_url = ""
 now = datetime.datetime.now()
 
 
+class MyProcessPoolExecutor(ProcessPoolExecutor):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._running_workers = 0
+
+    def submit(self, *args, **kwargs):
+        future = super().submit(*args, **kwargs)
+        self._running_workers += 1
+        future.add_done_callback(self._worker_is_done)
+        return future
+
+    def _worker_is_done(self, future):
+        self._running_workers -= 1
+
+    def get_pool_usage(self):
+        return self._running_workers
+
+
 class Collector:
     # Keep Future(s) of active requests.
     requests = set()
@@ -81,7 +99,7 @@ class Collector:
     # True
 
     def collect(self):
-        self.executor = ProcessPoolExecutor(self.concurrency)
+        self.executor = MyProcessPoolExecutor(self.concurrency)
 
         # if os.path.exists(self.sitemapFile):
         #     os.remove(self.sitemapFile)
@@ -138,7 +156,7 @@ class Collector:
 
         prefix_text = (
             f"{response_code}, {round(response_size/1024/1024, 2)}M,"
-            f" {round(duration, 2)}s, {len(links)}, {len(self.requests)}:"
+            f" {round(duration, 2)}s, {len(links)}, {self.executor.get_pool_usage()}:"
         )
 
         if response_code != 200:
