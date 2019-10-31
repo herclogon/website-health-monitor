@@ -20,6 +20,8 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from multiprocessing import Pool as ThreadPool
 from multiprocessing import Queue
 from pathlib import Path
+import signal
+import sys
 
 import pyppeteer
 import requests
@@ -116,20 +118,13 @@ class Collector:
         #         executor, obtainers.pyppeteer.get_links, self.start_url, ""
         #     )
 
-        # future = start(self.executor)
-        # print(f"future: {future}")
+        def shutdown():
+            self.executor.shutdown()
+            sys.exit()
 
-        # result = asyncio.get_event_loop().run_until_complete(future)
-        # print(f"result: {result}")
         self._add_url(self.start_url, "")
+        asyncio.get_event_loop().add_signal_handler(signal.SIGINT, shutdown)
         asyncio.get_event_loop().run_forever()
-
-        # future = self.executor.submit(obtainers.pyppeteer.get_links, self.start_url, "")
-        # self.requests.add(future)
-        # future.add_done_callback(self._furute_done_callback)
-
-        # while True:
-        #     time.sleep(1)
 
         print(f"Well done, {len(self.history)} URLs processed.")
 
@@ -153,9 +148,10 @@ class Collector:
         response_size = result["response_size"]
         response_content_type = result["response_content_type"]
         links = result["links"]
+        process_name = result["process_name"]
 
         prefix_text = (
-            f"{response_code}, {round(response_size/1024/1024, 2)}M,"
+            f"{process_name}: {response_code}, {round(response_size/1024/1024, 2)}M,"
             f" {round(duration, 2)}s, {len(links)}, {self.executor.get_pool_usage()}:"
         )
 
@@ -176,6 +172,9 @@ class Collector:
         print(message)
 
         for link in links:
+            # Strip hash "http://www.address.com/something<#something>"
+            link = link.split("#")[0]
+
             # Do not process foreign domains.
             if not link.startswith(self.start_url):
                 continue

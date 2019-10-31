@@ -7,6 +7,7 @@ import re
 import logging
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import threading
+from multiprocessing import current_process
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("pyppeteer").setLevel(logging.ERROR)
@@ -101,6 +102,7 @@ async def _obtain_resources(url: str, parent_url: str):
         "response_size": response_size,
         "response_content_type": response_content_type,
         "links": links,
+        "process_name": current_process().name,
     }
     return result
 
