@@ -24,6 +24,14 @@ python = "<3.8"
 version = ">=1.4.0,<1.5"
 
 [[package]]
+category = "main"
+description = "reference implementation of PEP 3156"
+name = "asyncio"
+optional = false
+python-versions = "*"
+version = "3.4.3"
+
+[[package]]
 category = "dev"
 description = "Classes Without Boilerplate"
 name = "attrs"
@@ -262,12 +270,13 @@ python-versions = "*"
 version = "1.11.2"
 
 [metadata]
-content-hash = "14a3d79ec613428150780bce3e5d2f428c3cea18b82d5ba583f5622a796ec750"
+content-hash = "5c4f81fa873b53b0d88f21d6319aec034a6ae551769857d4e3fe2a62a88a5126"
 python-versions = ">=3.6"
 
 [metadata.hashes]
 appdirs = ["9e5896d1372858f8dd3344faf4e5014d21849c756c8d5701f78f8a103b372d92", "d8b24664561d0d34ddfaec54636d502d7cea6e29c3eaf68f3df6180863e2166e"]
 astroid = ["98c665ad84d10b18318c5ab7c3d203fe11714cbad2a4aef4f44651f415392754", "b7546ffdedbf7abcfbff93cd1de9e9980b1ef744852689decc5aeada324238c6"]
+asyncio = ["83360ff8bc97980e4ff25c964c7bd3923d333d177aa4f7fb736b019f26c7cb41", "b62c9157d36187eca799c378e572c969f0da87cd5fc42ca372d92cdb06e7e1de", "c46a87b48213d7464f22d9a497b9eef8c1928b68320a2fa94240f969f6fec08c", "c4d18b22701821de07bd6aea8b53d21449ec0ec5680645e5317062ea21817d2d"]
 attrs = ["ec20e7a4825331c1b5ebf261d111e16fa9612c1f7a5e1f884f12bd53a664dfd2", "f913492e1663d3c36f502e5e9ba6cd13cf19d7fab50aa13239e420fef95e1396"]
 beautifulsoup4 = ["5279c36b4b2ec2cb4298d723791467e3000e5384a43ea0cdf5d45207c7e97169", "dcdef580e18a76d54002088602eba453eec38ebbcafafeaabd8cab12b6155d57"]
 black = ["817243426042db1d36617910df579a54f1afd659adb96fc5032fcf4b36209739", "e030a9a28f542debc08acceb273f228ac422798e5215ba2a791a6ddeaaca22a5"]

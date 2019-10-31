@@ -11,13 +11,15 @@ import os
 import queue
 import re
 import subprocess
+import threading
 import time
 import urllib
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from multiprocessing import Queue
-from pathlib import Path
 import urllib.request
 import urllib.robotparser
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from multiprocessing import Pool as ThreadPool
+from multiprocessing import Queue
+from pathlib import Path
 
 import pyppeteer
 import requests
@@ -79,30 +81,51 @@ class Collector:
     # True
 
     def collect(self):
-        if os.path.exists(self.sitemapFile):
-            os.remove(self.sitemapFile)
+        self.executor = ProcessPoolExecutor(self.concurrency)
 
-        with open(self.sitemapFile, "a") as f:
-            f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-            f.write('<urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">\n')
+        # if os.path.exists(self.sitemapFile):
+        #     os.remove(self.sitemapFile)
 
-        with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-            self.executor = executor
-            future = executor.submit(obtainers.pyppeteer.get_links, self.start_url, "")
-            self.requests.add(future)
-            future.add_done_callback(self._furute_done_callback)
+        # with open(self.sitemapFile, "a") as f:
+        #     f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+        #     f.write('<urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">\n')
 
-            while len(self.requests):
-                time.sleep(1)
+        # with open(self.sitemapFile, "a") as f:
+        #     f.writelines(["</urlset>"])
 
-        with open(self.sitemapFile, "a") as f:
-            f.writelines(["</urlset>"])
+        # async def start(executor):
+        #     return await asyncio.get_event_loop().run_in_executor(
+        #         executor, obtainers.pyppeteer.get_links, self.start_url, ""
+        #     )
+
+        # future = start(self.executor)
+        # print(f"future: {future}")
+
+        # result = asyncio.get_event_loop().run_until_complete(future)
+        # print(f"result: {result}")
+        self._add_url(self.start_url, "")
+        asyncio.get_event_loop().run_forever()
+
+        # future = self.executor.submit(obtainers.pyppeteer.get_links, self.start_url, "")
+        # self.requests.add(future)
+        # future.add_done_callback(self._furute_done_callback)
+
+        # while True:
+        #     time.sleep(1)
 
         print(f"Well done, {len(self.history)} URLs processed.")
 
+    def _add_url(self, url, parent):
+        future = asyncio.get_event_loop().run_in_executor(
+            self.executor, obtainers.pyppeteer.get_links, url, parent
+        )
+
+        future.add_done_callback(self._furute_done_callback)
+
     def _furute_done_callback(self, future):
-        result = future.result(timeout=60)
-        # print(f"result: {result}")
+        # print(threading.current_thread())
+        # print(future.result())
+        result = future.result()
 
         url = result["url"]
         parent_url = result["parent_url"]
@@ -124,13 +147,13 @@ class Collector:
             )
         else:
             if "text/html" in response_content_type:
-                with open(self.sitemapFile, "a") as f:
-                    f.write(f"<url>\n")
-                    f.write(f"  <loc>{html.escape(url)}</loc>\n")
-                    f.write(f"  <changefreq>weekly</changefreq>\n")
-                    f.write(f"  <priority>1</priority>\n")
-                    f.write(f"</url>\n")
-            message = prefix_text + f" {url}"
+                # with open(self.sitemapFile, "a") as f:
+                #     f.write(f"<url>\n")
+                #     f.write(f"  <loc>{html.escape(url)}</loc>\n")
+                #     f.write(f"  <changefreq>weekly</changefreq>\n")
+                #     f.write(f"  <priority>1</priority>\n")
+                #     f.write(f"</url>\n")
+                message = prefix_text + f" {url}"
 
         print(message)
 
@@ -144,9 +167,7 @@ class Collector:
                 continue
 
             self.history.add(link)
-            ex_future = self.executor.submit(obtainers.pyppeteer.get_links, link, url)
-            self.requests.add(ex_future)
-            ex_future.add_done_callback(self._furute_done_callback)
+            self._add_url(link, url)
 
         # Remove already done request from the list.
         self.requests.remove(future)

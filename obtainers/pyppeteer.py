@@ -6,6 +6,7 @@ from pyppeteer import launch, errors
 import re
 import logging
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+import threading
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("pyppeteer").setLevel(logging.ERROR)
@@ -70,8 +71,6 @@ async def _obtain_resources(url: str, parent_url: str):
                 if re.match(is_url_regex, href) is not None:
                     links.add(href)
 
-            await browser.close()
-
         except pyppeteer.errors.NetworkError as error:
             response_code = 902
             response_reason = f"Browser network exception."
@@ -81,6 +80,9 @@ async def _obtain_resources(url: str, parent_url: str):
             response_code = 903
             response_reason = f"Unknown exception {error}."
             log.error(error)
+
+        finally:
+            await browser.close()
 
         if duration > 10:
             response_code = 900
@@ -112,12 +114,7 @@ def _get_links_by_pyppeteer_io(*args, **kwargs):
 
 
 def _get_links_by_pyppeteer(url, parent):
-    with ProcessPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(_get_links_by_pyppeteer_io, url, parent)
-        while not future.done():
-            time.sleep(0.1)
-
-        return future.result()
+    return _get_links_by_pyppeteer_io(url, parent)
 
 
 def get_links(*args, **kwargs) -> RequestResult:
