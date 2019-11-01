@@ -138,7 +138,7 @@ class Collector:
     def _furute_done_callback(self, future):
         # print(threading.current_thread())
         # print(future.result())
-        result = future.result()
+        result = future.result(timeout=60)
 
         url = result["url"]
         parent_url = result["parent_url"]
