@@ -212,7 +212,7 @@ class Collector:
 
     # How mach time collector will wait obtainer results, it this timeout exceed
     # collector terminates obtainer process.
-    obtainer_execution_timeout = 10
+    obtainer_execution_timeout = 30
 
     def __init__(self, url):
         self.start_url = url
