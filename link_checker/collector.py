@@ -7,6 +7,7 @@ import datetime
 import hashlib
 import html
 import logging
+import multiprocessing as mp
 import os
 import queue
 import re
@@ -15,18 +16,20 @@ import subprocess
 import sys
 import threading
 import time
-import multiprocessing
+import weakref
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from multiprocessing import Pool as ThreadPool
 from multiprocessing import Queue
 from pathlib import Path
 from pprint import pprint
-import multiprocessing as mp
-import weakref
-import psutil
-import os
 
+import peewee
+import psutil
 import requests
+
+# Disable `InsecureRequestWarning: Unverified HTTPS request is being made.`
+# log warnings.
+import urllib3
 
 # Preventing 'Unverified HTTPS request is being made' warning.
 from bs4 import BeautifulSoup
@@ -34,19 +37,38 @@ from bs4 import BeautifulSoup
 import obtainers
 
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("peewee").setLevel(logging.CRITICAL)
 logging.getLogger("connectionpool").setLevel(logging.CRITICAL)
 logging.getLogger("urllib3.connectionpool").setLevel(logging.CRITICAL)
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 logging.getLogger("pyppeteer").setLevel(logging.CRITICAL)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
-# Disable `InsecureRequestWarning: Unverified HTTPS request is being made.`
-# log warnings.
-import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 log = logging.getLogger(__name__)
+
+
+db = peewee.SqliteDatabase("history.sqlite")
+
+
+class Link(peewee.Model):
+    url = peewee.TextField()
+    parent = peewee.TextField()
+    duration = peewee.IntegerField()
+    size = peewee.IntegerField()
+    content_type = peewee.CharField()
+    response_code = peewee.IntegerField()
+    response_reason = peewee.TextField()
+    date = peewee.DateTimeField()
+
+    class Meta:
+        database = db  # This model uses the "people.db" databas
+
+
+db.connect()
+db.create_tables([Link])
 
 
 class RequestResult:
@@ -64,7 +86,7 @@ class MyProcessPoolExecutor(ProcessPoolExecutor):
     """Use process pool instad of thread pool, cause `pyppeteer` can be run
     only in a main thread.
     """
-     
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._running_workers = 0
@@ -136,25 +158,31 @@ def func_proc(_target_func=None, _timeout=10, *args, **kwargs):
     """
     # Queue uses to get a result from the process.
     q = mp.Queue()
+    try_count = 3
 
-    p = mp.Process(target=func_proc_result(_target_func, q), args=args, kwargs=kwargs)
-    p.start()
+    while try_count > 0:
+        p = mp.Process(
+            target=func_proc_result(_target_func, q), args=args, kwargs=kwargs
+        )
+        p.start()
 
-    p.join(timeout=_timeout)
+        p.join(timeout=_timeout)
 
-    if p.is_alive():
-        log.debug(f"Killing process '{p.pid}' after timeout...")
+        if p.is_alive():
+            log.debug(f"Process '{p.pid}' timeout exceed, terminating...")
 
-        # Terminate/kill all process children.
-        reap_children(pid=p.pid)
+            # Terminate/kill all process children.
+            reap_children(pid=p.pid)
 
-        # Terminate process.
-        p.terminate()
+            # Terminate process.
+            p.terminate()
 
-        raise TimeoutError(f"Proccess '{p.pid}' is not finished during timeout.")
+            try_count -= 1
+            log.info("Trying to restart the process, try count: %s", try_count)
+            continue
 
-    if not p.is_alive() and p.exitcode == 0:
-        return q.get()
+        if not p.is_alive() and p.exitcode == 0:
+            return q.get()
 
     raise Exception(f"Unknown process end.")
 
@@ -184,7 +212,7 @@ class Collector:
 
     # How mach time collector will wait obtainer results, it this timeout exceed
     # collector terminates obtainer process.
-    obtainer_execution_timeout = 30
+    obtainer_execution_timeout = 10
 
     def __init__(self, url):
         self.start_url = url
@@ -239,6 +267,7 @@ class Collector:
             log.error(future.exception())
 
         result = future.result()
+
         url = result["url"]
         parent_url = result["parent_url"]
         duration = result["duration"]
@@ -248,6 +277,26 @@ class Collector:
         response_content_type = result["response_content_type"]
         links = result["links"]
         process_name = result["process_name"]
+
+        # Save link to db.
+        try:
+            try:
+                link = Link.get(Link.url == result["url"])
+            except Exception as e:
+                link = Link(
+                    url=url,
+                    parent=parent_url,
+                    duration=duration,
+                    size=response_size,
+                    content_type=response_content_type,
+                    response_code=response_code,
+                    response_reason=response_reason,
+                    date=datetime.datetime.now(),
+                )
+            link.data = datetime.datetime.now()
+            link.save()
+        except Exception as e:
+            log.error("%s", e)
 
         prefix_text = (
             f"{process_name}: {response_code}, {round(response_size/1024/1024, 2)}M,"
