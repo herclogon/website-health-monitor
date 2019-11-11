@@ -56,6 +56,7 @@ async def _obtain_resources(url: str, parent_url: str, user_agent: str):
         links.add(request.url)
         await request.continue_()
 
+    browser = None
     if "content-type" in page.headers and "text/html" in page.headers["content-type"]:
         try:
             browser = await pyppeteer.launch({"headless": True})
@@ -85,7 +86,8 @@ async def _obtain_resources(url: str, parent_url: str, user_agent: str):
             log.error(error)
 
         finally:
-            await browser.close()
+            if browser:
+                await browser.close()
 
         if duration > 10:
             response_code = 900

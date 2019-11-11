@@ -151,10 +151,8 @@ def func_proc_result(target_func, q):
 
 
 def func_proc(_target_func=None, _timeout=10, *args, **kwargs):
-    """Run the function in a separate process, if the function does not complete 
+    """Run the function in a separate process, if the function does not complete
     in timeout time - kill process with all children.
-
-    Useful 
     """
     # Queue uses to get a result from the process.
     q = mp.Queue()
