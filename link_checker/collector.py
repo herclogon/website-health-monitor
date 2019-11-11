@@ -54,14 +54,14 @@ db = peewee.SqliteDatabase("history.sqlite")
 
 
 class Link(peewee.Model):
-    url = peewee.TextField()
+    url = peewee.TextField(index=True)
     parent = peewee.TextField()
-    duration = peewee.IntegerField()
-    size = peewee.IntegerField()
-    content_type = peewee.CharField()
-    response_code = peewee.IntegerField()
-    response_reason = peewee.TextField()
-    date = peewee.DateTimeField()
+    duration = peewee.IntegerField(null=True)
+    size = peewee.IntegerField(null=True)
+    content_type = peewee.CharField(null=True)
+    response_code = peewee.IntegerField(null=True)
+    response_reason = peewee.TextField(null=True)
+    date = peewee.DateTimeField(null=True)
 
     class Meta:
         database = db  # This model uses the "people.db" databas
@@ -104,7 +104,7 @@ class MyProcessPoolExecutor(ProcessPoolExecutor):
         return self._running_workers
 
 
-def reap_children(pid, timeout=1):
+def reap_process(pid, timeout=1):
     "Tries hard to terminate and ultimately kill all the children of this process."
 
     def on_terminate(proc):
@@ -112,8 +112,12 @@ def reap_children(pid, timeout=1):
             "Process {} terminated with exit code {}".format(proc, proc.returncode)
         )
 
+    # Collect process children.
     procs = psutil.Process(pid=pid).children()
-    procs.append
+
+    # Also terminate original process.
+    procs.append(psutil.Process(pid=pid))
+
     # send SIGTERM
     for p in procs:
         try:
@@ -170,11 +174,8 @@ def func_proc(_target_func=None, _timeout=10, *args, **kwargs):
         if p.is_alive():
             log.debug(f"Process '{p.pid}' timeout exceed, terminating...")
 
-            # Terminate/kill all process children.
-            reap_children(pid=p.pid)
-
-            # Kill wrapper process.
-            p.kill()
+            # Terminate/kill process with children.
+            reap_process(pid=p.pid)
 
             try_count -= 1
             log.info("Trying to restart the process, try count: %s", try_count)
@@ -229,7 +230,7 @@ class Collector:
             self.executor.shutdown()
 
             # Terminate all child processes.
-            reap_children(os.getpid())
+            reap_process(os.getpid())
 
             # Exit from the application.
             sys.exit()
@@ -249,7 +250,7 @@ class Collector:
         log.info(f"Well done, {len(self.history)} URLs processed.")
 
     def _add_url(self, url, parent):
-
+        # Queue link process to execute.
         future = asyncio.get_event_loop().run_in_executor(
             self.executor,
             func_proc,
