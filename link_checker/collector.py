@@ -172,8 +172,8 @@ def func_proc(_target_func=None, _timeout=10, *args, **kwargs):
             # Terminate/kill all process children.
             reap_children(pid=p.pid)
 
-            # Terminate process.
-            p.terminate()
+            # Kill wrapper process.
+            p.kill()
 
             try_count -= 1
             log.info("Trying to restart the process, try count: %s", try_count)
@@ -296,15 +296,13 @@ class Collector:
         except Exception as e:
             log.error("%s", e)
 
-        prefix_text = (
+        message = (
             f"{process_name}: {response_code}, {round(response_size/1024/1024, 2)}M,"
             f" {round(duration, 2)}s, {len(links)}, {self.executor.get_pool_usage()}, {url}"
         )
 
         if response_code != 200:
-            message = f": {prefix_text} {url} <- ERROR: {response_reason}, parent: {parent_url}"
-        else:
-            message = prefix_text
+            message += " <- ERROR: {response_reason}, parent: {parent_url}"
 
         print(message)
 
