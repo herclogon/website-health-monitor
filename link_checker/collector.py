@@ -113,6 +113,7 @@ def reap_children(pid, timeout=1):
         )
 
     procs = psutil.Process(pid=pid).children()
+    procs.append
     # send SIGTERM
     for p in procs:
         try:
@@ -302,7 +303,7 @@ class Collector:
         )
 
         if response_code != 200:
-            message += " <- ERROR: {response_reason}, parent: {parent_url}"
+            message += f" <- ERROR: {response_reason}, parent: {parent_url}"
 
         print(message)
 
