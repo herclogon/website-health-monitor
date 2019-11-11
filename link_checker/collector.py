@@ -1,5 +1,3 @@
-# TODO(dmitry.golubkov): Write to sitemap file thread-safe.
-
 import argparse
 import asyncio
 import concurrent
@@ -34,6 +32,7 @@ import urllib3
 # Preventing 'Unverified HTTPS request is being made' warning.
 from bs4 import BeautifulSoup
 
+import models
 import obtainers
 
 logging.basicConfig(level=logging.INFO)
@@ -48,27 +47,6 @@ logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 log = logging.getLogger(__name__)
-
-
-db = peewee.SqliteDatabase("history.sqlite")
-
-
-class Link(peewee.Model):
-    url = peewee.TextField(index=True)
-    parent = peewee.TextField()
-    duration = peewee.IntegerField(null=True)
-    size = peewee.IntegerField(null=True)
-    content_type = peewee.CharField(null=True)
-    response_code = peewee.IntegerField(null=True)
-    response_reason = peewee.TextField(null=True)
-    date = peewee.DateTimeField(null=True)
-
-    class Meta:
-        database = db  # This model uses the "people.db" databas
-
-
-db.connect()
-db.create_tables([Link])
 
 
 class RequestResult:
@@ -281,9 +259,9 @@ class Collector:
         # Save link to db.
         try:
             try:
-                link = Link.get(Link.url == result["url"])
+                link = models.Link.get(models.Link.url == result["url"])
             except Exception as e:
-                link = Link(
+                link = models.Link(
                     url=url,
                     parent=parent_url,
                     duration=duration,
@@ -293,7 +271,7 @@ class Collector:
                     response_reason=response_reason,
                     date=datetime.datetime.now(),
                 )
-            link.data = datetime.datetime.now()
+            link.date = datetime.datetime.now()
             link.save()
         except Exception as e:
             log.error("%s", e)

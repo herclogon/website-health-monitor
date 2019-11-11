@@ -25,3 +25,5 @@ class Link(peewee.Model):
     class Meta:
         database = config.db  # This model uses the "people.db" databas
 
+
+config.db.create_tables([Link])
