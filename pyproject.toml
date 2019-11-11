@@ -15,6 +15,7 @@ asyncio = "^3.4"
 pytest = "^5.2"
 psutil = "^5.6"
 peewee = "^3.11"
+aiohttp = "^3.6"
 
 [tool.poetry.dev-dependencies]
 black = {version = "^18.3-alpha.0", allows-prereleases = true}
