@@ -207,8 +207,12 @@ class Collector:
             models.Link.select().where(models.Link.response_code != 200)
         )
 
-        for link in broken_links:
-            self._add_url(link.url, link.parent)
+        broken_parents = set([link.parent for link in broken_links])
+        for url in broken_parents:
+            self._add_url(
+                url,
+                models.Link.select().where(models.Link.url == url).get().parent,
+            )
 
         def shutdown():
             log.info(f"Shutting down...")
