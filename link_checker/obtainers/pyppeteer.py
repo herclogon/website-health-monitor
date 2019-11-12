@@ -59,25 +59,29 @@ async def _obtain_resources(url: str, parent_url: str, user_agent: str):
 
     browser = None
     if "content-type" in page.headers and "text/html" in page.headers["content-type"]:
-        browser = await pyppeteer.launch({"headless": True})
-        py_page = await browser.newPage()
-        py_page.on("request", request_callback)
-        await py_page.setUserAgent(user_agent)
-        await py_page.setRequestInterception(True)
-        await py_page.goto(url)
+        try:
+            browser = await pyppeteer.launch({"headless": False})
+            py_page = await browser.newPage()
+            py_page.on("request", request_callback)
+            await py_page.setUserAgent(user_agent)
+            await py_page.setRequestInterception(True)
+            await py_page.goto(url)
 
-        # Select all non-empty links.
-        a_href_elems = await py_page.querySelectorAllEval(
-            "a", "(nodes => nodes.map(n => n.href))"
-        )
+            # Select all non-empty links.
+            a_href_elems = await py_page.querySelectorAllEval(
+                "a", "(nodes => nodes.map(n => n.href))"
+            )
 
-        for href in a_href_elems:
-            if re.match(is_url_regex, href) is not None:
-                links.add(href)
+            for href in a_href_elems:
+                if re.match(is_url_regex, href) is not None:
+                    links.add(href)
 
-        if duration > 10:
-            response_code = 900
-            response_reason = f"Too slow response."
+            if duration > 10:
+                response_code = 900
+                response_reason = f"Too slow response."
+        finally:
+            if browser:
+                browser.close()
 
     result = {
         "url": url,
