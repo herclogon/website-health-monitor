@@ -133,7 +133,7 @@ def func_proc_result(target_func, q):
     return wrapper
 
 
-def func_proc(_target_func=None, _timeout=10, *args, **kwargs):
+def func_proc(_target_func=None, _timeout=30, *args, **kwargs):
     """Run the function in a separate process, if the function does not complete
     in timeout time - kill process with all children.
     """
