@@ -129,7 +129,7 @@ def func_proc_result(target_func, q):
             q.put(result)
         except Exception as e:
             log.debug("'target_func' call execution exception: %s", e)
-            sys.exit(code=1)
+            raise e
 
     return wrapper
 
