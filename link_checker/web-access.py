@@ -10,7 +10,11 @@ import models
 async def handle(request):
     links = [
         link.json()
-        for link in list(models.Link.select().where(models.Link.response_code > 200))
+        for link in list(
+            models.Link.select()
+            .where(models.Link.response_code > 200)
+            .order_by(models.Link.date.desc())
+        )
     ]
     return web.Response(text=json.dumps(links))
 
