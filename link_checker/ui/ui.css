@@ -2,16 +2,23 @@
     text-align: center;
 }
 
-.links-table td.url {
-    width: 50vw;
-    max-width: 50vw;
-    min-width: 50vw;
+.broken-links-list > ul:first-child > li:first-child {
+    /* font-weight: bold; */
 }
 
-.links-table td,
-.links-table th {
-    padding-left: 12px;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+.broken-links-list li {
+    margin-bottom: 8px;
+}
+
+.broken-links-list .parent {
+    font-weight: bold;
+}
+
+.broken-links-list .link {
+    font-weight: normal;
+    font-size: 0.8rem;
+}
+
+.broken-links-list .details {
+    font-size: 0.7rem;
 }

@@ -7,64 +7,56 @@
         <link
             rel="stylesheet"
             href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
-            integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" 
-            crossorigin="anonymous">
+            integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
+            crossorigin="anonymous"
+        />
         <script
             src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
             integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
-            crossorigin="anonymous">
-        </script>
+            crossorigin="anonymous"
+        ></script>
         <script
             src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"
             integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
-            crossorigin="anonymous">
-        </script>
+            crossorigin="anonymous"
+        ></script>
         <script
             src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"
             integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
-            crossorigin="anonymous">
-        </script>
+            crossorigin="anonymous"
+        ></script>
 
         <!-- Loading Vue.js... -->
         <script src="https://cdn.jsdelivr.net/npm/vue"></script>
 
         <!-- Loading AppUI... -->
-        <link rel="stylesheet" href="ui.css">
+        <link rel="stylesheet" href="ui.css" />
         <script src="ui.js"></script>
 
         <div class="title">
             <h1>Websites Broken Links</h1>
         </div>
 
-        <table id="links" class="links-table">
-            <thead>
-                <tr>
-                    <th scope="col" class="url">Url</th>
-                    <th scope="col">Parent</th>
-                    <th scope="col" class="code">Code</th>
-                    <th scope="col">Reason</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="link in links">
-                    <td class="url">
-                        <a v-bind:href="link.url" v-bind:title="link.url" target="_blank">
-                            {{ link.url }}
-                        </a>
-                    </td>
-                    <td class="parent">
-                        <a v-bind:href="link.parent" v-bind:title="link.parent" target="_blank">
-                            {{ link.parent }}
-                        </a>
-                    </td>
-                    <td class="code">{{ link.response_code }}</td>
-                    <td>
-                        <span v-bind:title="link.response_reason">
-                            {{ link.response_reason }}
-                        </span>
-                    </td>
-                </tr>
-            </tbody>
-        <table>
+        <div id="broken-links-list" class="broken-links-list">
+            <ul>
+                <li v-for="item in data" class="parent">
+                    <a v-bind:href="item.parent" target="_blank">{{
+                        item.parent
+                    }}</a>
+                    <ul>
+                        <li v-for="link in item.links" class="link">
+                            <a v-bind:href="item.parent" target="_blank">
+                                {{ link.url }}
+                            </a>
+                            <br />
+                            <span class="details">
+                                {{ link.response_code }},
+                                {{ link.response_reason }}, {{ link.date }}
+                            </span>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
     </body>
 </html>
