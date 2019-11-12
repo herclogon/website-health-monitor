@@ -1,25 +1,25 @@
 <html>
     <head>
-        <title>Reehouse: websites error pages</title>
+        <title>Reehouse: Websites Broken Links</title>
     </head>
     <body>
         <!-- Loading bootstrap... -->
-        <link 
-            rel="stylesheet" 
+        <link
+            rel="stylesheet"
             href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
             integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" 
             crossorigin="anonymous">
-        <script 
+        <script
             src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
             integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
             crossorigin="anonymous">
         </script>
-        <script 
+        <script
             src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"
             integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
             crossorigin="anonymous">
         </script>
-        <script 
+        <script
             src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"
             integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
             crossorigin="anonymous">
@@ -29,28 +29,40 @@
         <script src="https://cdn.jsdelivr.net/npm/vue"></script>
 
         <!-- Loading AppUI... -->
+        <link rel="stylesheet" href="ui.css">
         <script src="ui.js"></script>
 
-
-        <div style="text-align: center;">
-            <h1>Websites Error Pages</h1>
+        <div class="title">
+            <h1>Websites Broken Links</h1>
         </div>
 
-        <table id="links" class="table">
+        <table id="links" class="links-table">
             <thead>
                 <tr>
-                    <th scope="col">Link</th>
+                    <th scope="col" class="url">Url</th>
                     <th scope="col">Parent</th>
-                    <th scope="col">Code</th>
+                    <th scope="col" class="code">Code</th>
                     <th scope="col">Reason</th>
                 </tr>
             </thead>
             <tbody>
                 <tr v-for="link in links">
-                    <td><a v-bind:href="link.url">{{ link.url }}</a></td>
-                    <td><a v-bind:href="link.parent">{{ link.parent }}</a></td>
-                    <td>{{ link.response_code }}</td>
-                    <td>{{ link.response_reason }}</td>
+                    <td class="url">
+                        <a v-bind:href="link.url" v-bind:title="link.url" target="_blank">
+                            {{ link.url }}{{ link.url }}
+                        </a>
+                    </td>
+                    <td class="parent">
+                        <a v-bind:href="link.parent" v-bind:title="link.parent" target="_blank">
+                            {{ link.parent }}
+                        </a>
+                    </td>
+                    <td class="code">{{ link.response_code }}</td>
+                    <td>
+                        <span v-bind:title="link.response_reason">
+                            {{ link.response_reason }}
+                        </span>
+                    </td>
                 </tr>
             </tbody>
         <table>
