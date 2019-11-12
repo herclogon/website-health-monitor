@@ -60,7 +60,7 @@ async def _obtain_resources(url: str, parent_url: str, user_agent: str):
     browser = None
     if "content-type" in page.headers and "text/html" in page.headers["content-type"]:
         try:
-            browser = await pyppeteer.launch({"headless": False})
+            browser = await pyppeteer.launch({"headless": True})
             py_page = await browser.newPage()
             py_page.on("request", request_callback)
             await py_page.setUserAgent(user_agent)
@@ -81,7 +81,7 @@ async def _obtain_resources(url: str, parent_url: str, user_agent: str):
                 response_reason = f"Too slow response."
         finally:
             if browser:
-                browser.close()
+                await browser.close()
 
     result = {
         "url": url,
