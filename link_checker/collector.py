@@ -209,10 +209,12 @@ class Collector:
 
         broken_parents = set([link.parent for link in broken_links])
         for url in broken_parents:
-            self._add_url(
-                url,
-                models.Link.select().where(models.Link.url == url).get().parent,
-            )
+            try:
+                parent_url = models.Link.select().where(models.Link.url == url).get().parent
+            except:
+                continue
+
+            self._add_url(url, parent_url)
 
         def shutdown():
             log.info(f"Shutting down...")
