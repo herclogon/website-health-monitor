@@ -45,7 +45,7 @@
                     }}</a>
                     <ul>
                         <li v-for="link in item.links" class="link">
-                            <a v-bind:href="item.url" target="_blank">
+                            <a v-bind:href="link.url" target="_blank">
                                 {{ link.url }}
                             </a>
                             <br />
