@@ -273,6 +273,11 @@ class Collector:
                 )
             link.date = datetime.datetime.now()
             link.save()
+
+            # Delete all urls where parent is a current url.
+            query = models.Link.delete().where(models.Link.parent == result["url"])
+            query.execute()
+
         except Exception as e:
             log.error("%s", e)
 

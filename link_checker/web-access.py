@@ -1,13 +1,13 @@
-from aiohttp import web
 import json
 import os
+import pathlib
+
+from aiohttp import web
 
 import models
-import pathlib
 
 
 async def handle(request):
-    name = request.match_info.get("name", "Anonymous")
     links = [
         link.json()
         for link in list(models.Link.select().where(models.Link.response_code > 200))
@@ -17,7 +17,6 @@ async def handle(request):
 
 file_dir = pathlib.Path(os.path.dirname(os.path.abspath(__file__)))
 static_dir = file_dir / "ui"
-
 
 app = web.Application()
 app.add_routes([web.get("/api/links/", handle), web.get("/{name}", handle)])
