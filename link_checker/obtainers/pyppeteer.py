@@ -1,13 +1,14 @@
 import asyncio
-import requests
-import time
-import pyppeteer
-from pyppeteer import launch, errors
-import re
 import logging
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+import re
 import threading
+import time
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from multiprocessing import current_process
+
+import pyppeteer
+import requests
+from pyppeteer import errors, launch
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("pyppeteer").setLevel(logging.ERROR)
@@ -58,44 +59,25 @@ async def _obtain_resources(url: str, parent_url: str, user_agent: str):
 
     browser = None
     if "content-type" in page.headers and "text/html" in page.headers["content-type"]:
-        try:
-            browser = await pyppeteer.launch({"headless": True})
-            py_page = await browser.newPage()
-            py_page.on("request", request_callback)
-            await py_page.setUserAgent(user_agent)
-            await py_page.setRequestInterception(True)
-            await py_page.goto(url)
+        browser = await pyppeteer.launch({"headless": True})
+        py_page = await browser.newPage()
+        py_page.on("request", request_callback)
+        await py_page.setUserAgent(user_agent)
+        await py_page.setRequestInterception(True)
+        await py_page.goto(url)
 
-            # Select all non-empty links.
-            a_href_elems = await py_page.querySelectorAllEval(
-                "a", "(nodes => nodes.map(n => n.href))"
-            )
+        # Select all non-empty links.
+        a_href_elems = await py_page.querySelectorAllEval(
+            "a", "(nodes => nodes.map(n => n.href))"
+        )
 
-            for href in a_href_elems:
-                if re.match(is_url_regex, href) is not None:
-                    links.add(href)
-
-        except pyppeteer.errors.NetworkError as error:
-            response_code = 902
-            response_reason = f"Browser network exception."
-            log.error(error)
-
-        except Exception as error:
-            response_code = 903
-            response_reason = f"Unknown exception {error}."
-            log.error(error)
-
-        finally:
-            if browser:
-                await browser.close()
+        for href in a_href_elems:
+            if re.match(is_url_regex, href) is not None:
+                links.add(href)
 
         if duration > 10:
             response_code = 900
             response_reason = f"Too slow response."
-
-    if response_content_type == "unknown":
-        response_code = 904
-        response_reason = f"No 'content-type' field in response header."
 
     result = {
         "url": url,
@@ -111,17 +93,9 @@ async def _obtain_resources(url: str, parent_url: str, user_agent: str):
     return result
 
 
-def _get_links_by_pyppeteer_io(*args, **kwargs):
+def get_links(url, parent, user_agent) -> RequestResult:
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     return asyncio.get_event_loop().run_until_complete(
-        _obtain_resources(*args, **kwargs)
+        _obtain_resources(url, parent, user_agent)
     )
-
-
-def _get_links_by_pyppeteer(url, parent, user_agent):
-    return _get_links_by_pyppeteer_io(url, parent, user_agent)
-
-
-def get_links(*args, **kwargs) -> RequestResult:
-    return _get_links_by_pyppeteer(*args, **kwargs)
