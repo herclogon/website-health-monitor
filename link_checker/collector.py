@@ -202,6 +202,14 @@ class Collector:
     def start(self):
         self.executor = MyProcessPoolExecutor(self.concurrency)
 
+        # Check broken link first.
+        broken_links = list(
+            models.Link.select().where(models.Link.response_code != 200)
+        )
+
+        for link in broken_links:
+            self._add_url(link.url, link.parent)
+
         def shutdown():
             log.info(f"Shutting down...")
 
