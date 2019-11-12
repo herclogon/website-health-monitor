@@ -207,10 +207,11 @@ class Collector:
             models.Link.select().where(models.Link.response_code != 200)
         )
 
-        broken_parents = set([link.parent for link in broken_links])
-        for url in broken_parents:
+        broken_parent_urls = set([link.parent for link in broken_links])
+        for url in broken_parent_urls:
             try:
-                parent_url = models.Link.select().where(models.Link.url == url).get().parent
+                parent = models.Link.select().where(models.Link.url == url).get()
+                parent_url = parent.parent
             except:
                 continue
 
