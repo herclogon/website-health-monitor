@@ -295,7 +295,10 @@ class Collector:
             link.save()
 
             # Delete all urls where parent is a current url.
-            query = models.Link.delete().where(models.Link.parent == result["url"])
+            query = models.Link.delete().where(
+                models.Link.parent == result["url"],
+                models.Link.start_url == self.start_url,
+            )
             query.execute()
 
         except Exception as e:
