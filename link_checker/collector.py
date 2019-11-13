@@ -204,7 +204,10 @@ class Collector:
 
         # Check broken link first.
         broken_links = list(
-            models.Link.select().where(models.Link.response_code != 200)
+            models.Link.select().where(
+                models.Link.response_code != 200,
+                models.Link.start_url == self.start_url,
+            )
         )
 
         broken_parent_urls = set([link.parent for link in broken_links])
@@ -278,6 +281,7 @@ class Collector:
                 link = models.Link.get(models.Link.url == result["url"])
             except Exception as e:
                 link = models.Link(
+                    start_url=self.start_url,
                     url=url,
                     parent=parent_url,
                     duration=duration,

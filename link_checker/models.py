@@ -4,8 +4,9 @@ import json
 
 
 class Link(peewee.Model):
+    start_url = peewee.TextField(index=True)
     url = peewee.TextField(index=True)
-    parent = peewee.TextField()
+    parent = peewee.TextField(index=True)
     duration = peewee.IntegerField(null=True)
     size = peewee.IntegerField(null=True)
     content_type = peewee.CharField(null=True)
