@@ -12,7 +12,7 @@ async def handle(request):
         link.json()
         for link in list(
             models.Link.select()
-            .where(models.Link.response_code > 200)
+            .where(models.Link.response_code >= 400)
             .order_by(models.Link.parent)
         )
     ]
