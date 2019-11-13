@@ -13,7 +13,7 @@ async def handle(request):
         for link in list(
             models.Link.select()
             .where(models.Link.response_code > 200)
-            .order_by(models.Link.date.desc())
+            .order_by(models.Link.parent)
         )
     ]
     return web.Response(text=json.dumps(links))
