@@ -281,6 +281,14 @@ mccabe = ">=0.6,<0.7"
 
 [[package]]
 category = "main"
+description = "Pure Python MySQL Driver"
+name = "pymysql"
+optional = false
+python-versions = "*"
+version = "0.9.3"
+
+[[package]]
+category = "main"
 description = "Python parsing module"
 name = "pyparsing"
 optional = false
@@ -461,7 +469,7 @@ version = "0.6.0"
 more-itertools = "*"
 
 [metadata]
-content-hash = "f673ea469a61c17eb3138282109de801aa5ab81b5f411dfad468770ab108a04b"
+content-hash = "1441f77586bb6d5b6790031355db0f6fb3aaf3517effadf55de787a778c16123"
 python-versions = ">=3.6"
 
 [metadata.hashes]
@@ -493,6 +501,7 @@ psutil = ["021d361439586a0fd8e64f8392eb7da27135db980f249329f1a347b9de99c695", "1
 py = ["64f65755aee5b381cea27766a3a147c3f15b9b6b9ac88676de66ba2ae36793fa", "dc639b046a6e2cff5bbe40194ad65936d6ba360b52b3c3fe1d08a82dd50b5e53"]
 pyee = ["a9c9b60e8693a260dd942ef5a71358cfcbba15792d5e72caf0e3c891c4e91c3b", "dbe44f61c40a995d2bdfd83d9fcb87ae025882d2c7f366513325e3daa09d7ede"]
 pylint = ["7edbae11476c2182708063ac387a8f97c760d9cfe36a5ede0ca996f90cf346c8", "844ce067788028c1a35086a5c66bc5e599ddd851841c41d6ee1623b36774d9f2"]
+pymysql = ["3943fbbbc1e902f41daf7f9165519f140c4451c179380677e6a848587042561a", "d8c059dcd81dedb85a9f034d5e22dcb4442c0b201908bede99e306d65ea7c8e7"]
 pyparsing = ["4acadc9a2b96c19fe00932a38ca63e601180c39a189a696abce1eaab641447e1", "61b5ed888beab19ddccab3478910e2076a6b5a0295dffc43021890e136edf764"]
 pyppeteer = ["51fe769b722a1718043b74d12c20420f29e0dd9eeea2b66652b7f93a9ad465dd"]
 pytest = ["27abc3fef618a01bebb1f0d6d303d2816a99aa87a5968ebc32fe971be91eb1e6", "58cee9e09242937e136dbb3dab466116ba20d6b7828c7620f23947f37eb4dae4"]

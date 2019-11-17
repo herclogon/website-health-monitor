@@ -16,6 +16,7 @@ pytest = "^5.2"
 psutil = "^5.6"
 peewee = "^3.11"
 aiohttp = "^3.6"
+pymysql = "^0.9.3"
 
 [tool.poetry.dev-dependencies]
 black = {version = "^18.3-alpha.0", allows-prereleases = true}
