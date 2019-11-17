@@ -4,9 +4,9 @@ import json
 
 
 class Link(peewee.Model):
-    start_url = peewee.TextField(index=True)
-    url = peewee.TextField(index=True)
-    parent = peewee.TextField(index=True)
+    start_url = peewee.TextField()
+    url = peewee.TextField()
+    parent = peewee.TextField()
     duration = peewee.IntegerField(null=True)
     size = peewee.IntegerField(null=True)
     content_type = peewee.CharField(null=True)
@@ -25,6 +25,16 @@ class Link(peewee.Model):
 
     class Meta:
         database = config.db  # This model uses the "people.db" databas
+        indexes = (
+            peewee.SQL("create index url_idx on link (url(256))"),
+            peewee.SQL("create index parent_idx on link (parent(256))"),
+            peewee.SQL(
+                "create index response_code_start_url_idx on link (response_code, start_url(256))"
+            ),
+            peewee.SQL(
+                "create index parent_start_url_idx on link (parent(256), start_url(256))"
+            ),
+        )
 
 
 config.db.create_tables([Link])
