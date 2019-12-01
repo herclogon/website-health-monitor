@@ -4,7 +4,7 @@ import pathlib
 
 from aiohttp import web
 
-import models
+from . import models
 
 
 async def handle(request):
@@ -26,5 +26,6 @@ app = web.Application()
 app.add_routes([web.get("/api/links/", handle), web.get("/{name}", handle)])
 app.add_routes([web.static("/ui/", static_dir)])
 
-if __name__ == "__main__":
+
+def start():
     web.run_app(app)

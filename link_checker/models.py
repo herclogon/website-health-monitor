@@ -1,6 +1,8 @@
-import peewee
-import config
 import json
+
+import peewee
+
+from . import config
 
 
 class Link(peewee.Model):
