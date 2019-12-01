@@ -28,10 +28,6 @@ declare var Vue: any;
         });
     });
 
-    console.log({ parents });
-    console.log({ linksDict });
-    console.log({ data });
-
     const app = new Vue({
         el: "#broken-links-list",
         data: {
@@ -41,6 +37,4 @@ declare var Vue: any;
             data
         }
     });
-
-    console.log(links);
 })();
