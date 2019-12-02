@@ -11,5 +11,5 @@ db = peewee.MySQLDatabase(
     password="link_checker",
     host="localhost",
     port=3306,
-    autoconnect=True,
+    autoconnect=False,
 )

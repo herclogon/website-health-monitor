@@ -25,14 +25,11 @@ import peewee
 import psutil
 import requests
 
-# Disable `InsecureRequestWarning: Unverified HTTPS request is being made.`
-# log warnings.
 import urllib3
 
-# Preventing 'Unverified HTTPS request is being made' warning.
 from bs4 import BeautifulSoup
 
-from . import models, obtainers
+from . import config, models, obtainers
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("peewee").setLevel(logging.CRITICAL)
@@ -42,7 +39,8 @@ logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 logging.getLogger("pyppeteer").setLevel(logging.CRITICAL)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
-
+# Disable `InsecureRequestWarning: Unverified HTTPS request is being made.`
+# log warnings.
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 log = logging.getLogger(__name__)
@@ -199,6 +197,9 @@ class Collector:
         self._features = set()
 
     def start(self):
+        # Open db connection.
+        config.db.connect()
+
         self.executor = MyProcessPoolExecutor(self.concurrency)
 
         # Check broken link first.
@@ -227,6 +228,9 @@ class Collector:
 
             # Terminate all child processes.
             reap_process(os.getpid())
+
+            # Close db connection.
+            config.db.close()
 
             # Exit from the application.
             sys.exit()
