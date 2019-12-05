@@ -1,35 +1,16 @@
-import argparse
 import asyncio
-import concurrent
+import concurrent.futures
 import datetime
-import hashlib
-import html
 import logging
-import multiprocessing as mp
+import multiprocessing
 import os
-import queue
-import re
 import signal
-import subprocess
 import sys
-import threading
-import time
-import weakref
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from multiprocessing import Pool as ThreadPool
-from multiprocessing import Queue
-from pathlib import Path
-from pprint import pprint
 
-import peewee
 import psutil
-import requests
-
 import urllib3
 
-from bs4 import BeautifulSoup
-
-from . import config, models, obtainers
+from . import config, models
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("peewee").setLevel(logging.CRITICAL)
@@ -57,7 +38,7 @@ class RequestResult:
     links = []
 
 
-class MyProcessPoolExecutor(ProcessPoolExecutor):
+class MyProcessPoolExecutor(concurrent.futures.ProcessPoolExecutor):
     """Use process pool instad of thread pool, cause `pyppeteer` can be run
     only in a main thread.
     """
@@ -72,6 +53,7 @@ class MyProcessPoolExecutor(ProcessPoolExecutor):
         future.add_done_callback(self._worker_is_done)
         return future
 
+    # pylint: disable=unused-argument
     def _worker_is_done(self, future):
         self._running_workers -= 1
 
@@ -83,9 +65,7 @@ def reap_process(pid, timeout=1):
     "Tries hard to terminate and ultimately kill all the children of this process."
 
     def on_terminate(proc):
-        log.info(
-            "Process {} terminated with exit code {}".format(proc, proc.returncode)
-        )
+        log.info("Process %s terminated with exit code %s.", proc, proc.returncode)
 
     # Collect process children.
     procs = psutil.Process(pid=pid).children()
@@ -136,11 +116,11 @@ def func_proc(_target_func=None, _timeout=30, *args, **kwargs):
     in timeout time - kill process with all children.
     """
     # Queue uses to get a result from the process.
-    q = mp.Queue()
+    q = multiprocessing.Queue()
     try_count = 3
 
     while try_count > 0:
-        p = mp.Process(
+        p = multiprocessing.Process(
             target=func_proc_result(_target_func, q), args=args, kwargs=kwargs
         )
         p.start()
@@ -221,7 +201,7 @@ class Collector:
             self._add_url(url, parent_url)
 
         def shutdown():
-            log.info(f"Shutting down...")
+            log.info("Shutting down...")
 
             # Shutting down process executor.
             self.executor.shutdown()
@@ -247,7 +227,7 @@ class Collector:
 
         # Wait until `executor` finished all tasks.
         asyncio.get_event_loop().run_until_complete(monitor())
-        log.info(f"Well done, {len(self.history)} URLs processed.")
+        log.info("Well done, %s URLs processed.", len(self.history))
 
     def _add_url(self, url, parent):
         # Queue link process to execute.

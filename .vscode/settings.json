@@ -1,8 +1,16 @@
 {
     "python.formatting.provider": "black",
     "python.pythonPath": ".venv/bin/python",
-    "python.linting.pylintEnabled": true,
-    "python.linting.enabled": true,
     "git.ignoreLimitWarning": true,
-    "prettier.tabWidth": 4
+    "prettier.tabWidth": 4,
+    "python.linting.banditEnabled": true,
+    "python.linting.enabled": true,
+    "python.linting.flake8Enabled": false,
+    "python.linting.mypyEnabled": false,
+    "python.linting.pylintArgs": ["--rcfile=${workspaceFolder}/.pylintrc"],
+    "python.linting.pylintEnabled": true,
+    "python.linting.pylintUseMinimalCheckers": false,
+    "cSpell.words": [
+        "asyncio"
+    ]
 }
