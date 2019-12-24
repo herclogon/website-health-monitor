@@ -1,11 +1,11 @@
+import html
 import json
 import os
 import pathlib
 
 from aiohttp import web
 
-from . import models
-from . import config
+from . import config, models
 
 
 def generate_sitemap(links):
@@ -18,7 +18,7 @@ def generate_sitemap(links):
     for link in links:
         sitemap_urls += (
             f"<url>"
-            f"<loc>{link['url']}</loc>"
+            f"<loc>{html.escape(link['url'])}</loc>"
             f"<lastmod>{link['date']}</lastmod>"
             f"</url>"
         )
