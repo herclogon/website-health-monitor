@@ -245,6 +245,7 @@ class Collector:
     def _furute_done_callback(self, future):
         if future.exception():
             log.error(future.exception())
+            return
 
         result = future.result()
 

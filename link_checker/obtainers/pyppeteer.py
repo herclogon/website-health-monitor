@@ -75,10 +75,6 @@ async def _obtain_resources(url: str, parent_url: str, user_agent: str):
             for href in a_href_elems:
                 if re.match(is_url_regex, href) is not None:
                     links.add(href)
-
-            if duration > 10:
-                response_code = 900
-                response_reason = f"Too slow response."
         finally:
             if browser:
                 await browser.close()
