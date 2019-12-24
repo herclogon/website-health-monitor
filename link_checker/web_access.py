@@ -77,7 +77,7 @@ async def sitemap(request):
         # Remove excluded urls.
         def exclude_filter(link):
             for exclude in excludes:
-                if link.url.startswith(exclude):
+                if link["url"].startswith(exclude):
                     return False
             return True
 
